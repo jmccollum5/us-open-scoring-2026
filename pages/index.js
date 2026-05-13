@@ -4,7 +4,7 @@ import { TEAMS } from "../lib/picks.js";
 import { computeStandings, formatScore, formatThru } from "../lib/scoring.js";
 import { runMonteCarlo } from "../lib/monteCarlo.js";
 
-const REFRESH_INTERVAL = 60 * 1000; // 60 seconds
+const REFRESH_INTERVAL = 60 * 1000;
 
 export default function Home() {
   const [rawScores, setRawScores] = useState(null);
@@ -38,19 +38,15 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [fetchScores]);
 
-  // Run Monte Carlo whenever scores change
   useEffect(() => {
     if (rawScores === null) return;
     setSimDone(false);
     setProbsAnimated(false);
-    // Defer to avoid blocking render
     const t = setTimeout(() => {
       const probs = runMonteCarlo(TEAMS, rawScores);
-      // Sort by win probability descending
       probs.sort((a, b) => b.winPct - a.winPct);
       setWinProbs(probs);
       setSimDone(true);
-      // Animate bars after a short delay
       setTimeout(() => setProbsAnimated(true), 80);
     }, 50);
     return () => clearTimeout(t);
@@ -88,7 +84,6 @@ export default function Home() {
       </Head>
 
       <div className="app">
-        {/* ── HEADER ── */}
         <header className="header">
           <div className="header-inner">
             <div className="header-logo">
@@ -112,7 +107,6 @@ export default function Home() {
           </div>
         </header>
 
-        {/* ── WIN PROBABILITY ── */}
         <section className="win-prob-section">
           <p className="section-label">Win Probability · Monte Carlo Simulation</p>
           <div className="win-prob-card">
@@ -146,10 +140,8 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── STANDINGS ── */}
         <section className="standings-section">
           <p className="section-label">Team Standings · Top 4 of 7 Count</p>
-
           {loading ? (
             <div className="center-message">
               <div className="spinner" />
@@ -178,12 +170,10 @@ export default function Home() {
   );
 }
 
-/* ── TEAM CARD ── */
 function TeamCard({ team, rank }) {
-  const totalStr = team.teamTotal === null
-    ? "–"
-    : formatScore(team.teamTotal);
+  const [open, setOpen] = useState(false);
 
+  const totalStr = team.teamTotal === null ? "–" : formatScore(team.teamTotal);
   const totalClass =
     team.teamTotal === null ? "pending"
     : team.teamTotal < 0 ? "under"
@@ -192,17 +182,17 @@ function TeamCard({ team, rank }) {
 
   return (
     <div className="team-card">
-      <div className="team-card-header">
+      <div className="team-card-header" style={{ cursor: "pointer", userSelect: "none" }} onClick={() => setOpen((o) => !o)}>
         <div className="team-header-left">
           <span className={`team-rank ${rank <= 3 ? "top3" : ""}`}>{rank}</span>
           <span className="team-color-dot" style={{ background: team.color }} />
           <span className="team-name">{team.name}</span>
+          <span style={{ fontSize: 11, color: "var(--text-dim)", marginLeft: 4, transition: "transform 0.25s", display: "inline-block", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}>▼</span>
         </div>
         <span className={`team-total ${totalClass}`}>{totalStr}</span>
       </div>
-
-      <div className="golfer-list">
-        {team.golfers.map((golfer, i) => {
+      <div style={{ maxHeight: open ? "500px" : "0px", overflow: "hidden", transition: "max-height 0.3s ease" }}>
+        {team.golfers.map((golfer) => {
           const counts = team.top4Names.has(golfer.name);
           const scoreStr = golfer.score === null ? "–" : formatScore(golfer.displayScore);
           const scoreClass =
@@ -211,20 +201,14 @@ function TeamCard({ team, rank }) {
             : golfer.displayScore < 0 ? "under"
             : golfer.displayScore > 0 ? "over"
             : "even";
-
-          const thruStr = formatThru(golfer.thru, golfer.round);
-
           return (
-            <div
-              key={golfer.name}
-              className={`golfer-row${counts ? " counts" : ""}${!golfer.madeCut ? " cut" : ""}`}
-            >
+            <div key={golfer.name} className={`golfer-row${counts ? " counts" : ""}${!golfer.madeCut ? " cut" : ""}`}>
               <div className="golfer-name-wrap">
                 {counts && <span className="golfer-counts-dot" />}
                 <span className="golfer-name">{golfer.name}</span>
                 {!golfer.madeCut && <span className="golfer-cut-badge">CUT</span>}
               </div>
-              <span className="golfer-thru">{thruStr}</span>
+              <span className="golfer-thru">{formatThru(golfer.thru, golfer.round)}</span>
               <span className={`golfer-score ${scoreClass}`}>{scoreStr}</span>
             </div>
           );
