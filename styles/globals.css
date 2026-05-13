@@ -1,0 +1,441 @@
+/* styles/globals.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,300;0,400;0,600;0,700;0,800;1,400&family=Barlow:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #080c14;
+  --bg-card: #0e1520;
+  --bg-card2: #121d2e;
+  --border: rgba(255,255,255,0.07);
+  --border-accent: rgba(255,255,255,0.12);
+  --gold: #c9a84c;
+  --gold-light: #e8c97a;
+  --gold-dim: rgba(201,168,76,0.15);
+  --navy: #0a1628;
+  --text-primary: #f0f4f8;
+  --text-secondary: #8a9ab5;
+  --text-dim: #4a5a72;
+  --red: #ef4444;
+  --green: #22c55e;
+  --cut: #f97316;
+  --radius: 10px;
+  --radius-sm: 6px;
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: 'Barlow', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Subtle grain overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 16px 60px;
+}
+
+/* ── HEADER ───────────────────────────────────── */
+.header {
+  position: relative;
+  padding: 28px 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 28px;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.header-badge {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-eyebrow {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.header-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(22px, 4vw, 38px);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.header-subtitle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  letter-spacing: 0.04em;
+  margin-top: 3px;
+}
+
+.header-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(34,197,94,0.1);
+  border: 1px solid rgba(34,197,94,0.25);
+  border-radius: 100px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--green);
+  letter-spacing: 0.06em;
+}
+
+.status-pill.pretournament {
+  background: rgba(201,168,76,0.1);
+  border-color: rgba(201,168,76,0.25);
+  color: var(--gold);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.update-time {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── WIN PROBABILITY ──────────────────────────── */
+.win-prob-section {
+  margin-bottom: 28px;
+}
+
+.section-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 12px;
+}
+
+.win-prob-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.win-prob-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.win-prob-row {
+  display: grid;
+  grid-template-columns: 72px 1fr 52px;
+  align-items: center;
+  gap: 10px;
+}
+
+.win-prob-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-primary);
+}
+
+.win-prob-bar-track {
+  height: 20px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.win-prob-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 4px;
+}
+
+.win-prob-pct {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  color: var(--text-primary);
+}
+
+/* ── STANDINGS ────────────────────────────────── */
+.standings-section {
+  margin-bottom: 20px;
+}
+
+.standings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.team-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.team-card:hover {
+  border-color: var(--border-accent);
+}
+
+.team-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+.team-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-rank {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-dim);
+  width: 28px;
+  line-height: 1;
+}
+
+.team-rank.top3 {
+  color: var(--gold);
+}
+
+.team-color-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.team-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
+}
+
+.team-total {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.team-total.under { color: var(--green); }
+.team-total.over  { color: var(--red); }
+.team-total.even  { color: var(--text-secondary); }
+.team-total.pending { color: var(--text-dim); font-size: 14px; }
+
+/* golfer rows */
+.golfer-list {
+  padding: 6px 0;
+}
+
+.golfer-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  transition: background 0.15s;
+}
+
+.golfer-row:hover {
+  background: rgba(255,255,255,0.02);
+}
+
+.golfer-row.counts {
+  background: rgba(255,255,255,0.025);
+}
+
+.golfer-row.cut {
+  opacity: 0.5;
+}
+
+.golfer-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+}
+
+.golfer-counts-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--gold);
+  flex-shrink: 0;
+}
+
+.golfer-name {
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.golfer-cut-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--cut);
+  background: rgba(249,115,22,0.1);
+  border: 1px solid rgba(249,115,22,0.2);
+  border-radius: 3px;
+  padding: 1px 4px;
+  flex-shrink: 0;
+}
+
+.golfer-thru {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.golfer-score {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: right;
+  min-width: 32px;
+}
+
+.golfer-score.under { color: var(--green); }
+.golfer-score.over  { color: var(--red); }
+.golfer-score.even  { color: var(--text-secondary); }
+.golfer-score.pending { color: var(--text-dim); }
+
+/* ── LOADING / ERROR ───────────────────────────── */
+.center-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 12px;
+  color: var(--text-dim);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255,255,255,0.1);
+  border-top-color: var(--gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.refresh-btn {
+  margin-top: 8px;
+  background: none;
+  border: 1px solid var(--border-accent);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-family: 'Barlow', sans-serif;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.refresh-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+/* ── FOOTER ─────────────────────────────────────── */
+.footer {
+  text-align: center;
+  padding: 24px 0 0;
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  border-top: 1px solid var(--border);
+}
+
+/* ── RESPONSIVE ─────────────────────────────────── */
+@media (max-width: 600px) {
+  .standings-grid {
+    grid-template-columns: 1fr;
+  }
+  .win-prob-row {
+    grid-template-columns: 60px 1fr 44px;
+  }
+}
