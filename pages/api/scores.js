@@ -1,5 +1,3 @@
-// pages/api/scores.js
-// Par for Aronimink Golf Club: 70
 const COURSE_PAR = 70;
 
 export default async function handler(req, res) {
@@ -8,7 +6,6 @@ export default async function handler(req, res) {
     const scores = await fetchScores();
     res.status(200).json({ ok: true, scores, source: scores._source, updatedAt: new Date().toISOString() });
   } catch (err) {
-    console.error("Score fetch failed:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 }
@@ -57,19 +54,25 @@ function parsePGATourData(data) {
   for (const player of (data?.leaderboard?.players || [])) {
     const fullName = `${player?.player_bio?.first_name || ""} ${player?.player_bio?.last_name || ""}`.trim();
     if (!fullName) continue;
-    const total = parseScoreStr(player?.total || "E");
-    const thru = player?.thru ?? null;
-    const round = player?.current_round ?? 1;
-    const madeCut = player?.status !== "cut" && player?.status !== "CUT";
-    const rounds = (player?.rounds || []).map(r => r?.strokes ?? null).filter(r => r !== null);
-    scores[normalizeName(fullName)] = { name: fullName, total, thru, round, rounds, madeCut, status: player?.status || "active" };
+    scores[normalizeName(fullName)] = {
+      name: fullName,
+      total: parseScoreStr(player?.total || "E"),
+      thru: player?.thru ?? null,
+      round: player?.current_round ?? 1,
+      rounds: (player?.rounds || []).map(r => r?.strokes ?? null).filter(r => r !== null),
+      madeCut: player?.status !== "cut" && player?.status !== "CUT",
+      status: player?.status || "active",
+    };
   }
   return scores;
 }
 
 async function fetchFromESPN() {
   const url = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
-  const res = await fetch(url, { headers: { ...HEADERS, "Referer": "https://www.espn.com/golf/leaderboard", "Origin": "https://www.espn.com" }, signal: AbortSignal.timeout(8000) });
+  const res = await fetch(url, {
+    headers: { ...HEADERS, "Referer": "https://www.espn.com/golf/leaderboard", "Origin": "https://www.espn.com" },
+    signal: AbortSignal.timeout(8000),
+  });
   if (!res.ok) throw new Error(`ESPN returned ${res.status}`);
   const data = await res.json();
   const scores = {};
@@ -79,24 +82,23 @@ async function fetchFromESPN() {
       for (const player of (comp?.competitors || [])) {
         const fullName = player?.athlete?.displayName;
         if (!fullName) continue;
+
         const madeCut = !player?.status?.type?.name?.includes("CUT");
-        const linescores = player?.linescores || [];
 
-        // Convert each round's raw strokes to score relative to par
-        const rounds = linescores.map(ls => {
-          const strokes = ls?.value ?? null;
-          if (!strokes || strokes === 0) return null;
-          return strokes - COURSE_PAR;
-        }).filter(v => v !== null);
+        // ESPN stores the to-par total directly in player.score as a string like "-4", "+2", "E"
+        const scoreStr = player?.score ?? "E";
+        const total = parseScoreStr(scoreStr);
 
-        const total = rounds.length > 0 ? rounds.reduce((s, v) => s + v, 0) : null;
+        // thru comes from status.thru
+        const thru = player?.status?.thru ?? null;
+        const round = player?.status?.period ?? null;
 
         scores[normalizeName(fullName)] = {
           name: fullName,
           total,
-          thru: player?.status?.thru ?? null,
-          round: player?.status?.period ?? null,
-          rounds,
+          thru,
+          round,
+          rounds: [],
           madeCut,
           status: player?.status?.type?.name || "active",
         };
@@ -107,7 +109,7 @@ async function fetchFromESPN() {
 }
 
 function parseScoreStr(str) {
-  if (!str || str === "E") return 0;
+  if (!str || str === "E" || str === "Even") return 0;
   const n = parseInt(str, 10);
   return isNaN(n) ? 0 : n;
 }
