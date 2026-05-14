@@ -1,7 +1,3 @@
-// pages/api/scores.js
-// Server-side score fetcher for the 2026 PGA Championship
-// Tries ESPN first (with browser headers), then falls back to CBS Sports scraping
-
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=30");
 
@@ -15,147 +11,132 @@ export default async function handler(req, res) {
 }
 
 async function fetchScores() {
-  // Try ESPN API first
+  // Try PGA Tour full leaderboard first
   try {
-    const espnScores = await fetchFromESPN();
-    if (espnScores && Object.keys(espnScores).length > 0) {
-      espnScores._source = "espn";
-      return espnScores;
+    const scores = await fetchFromPGATourV2();
+    if (scores && Object.keys(scores).length > 5) {
+      scores._source = "pgatour";
+      return scores;
     }
   } catch (e) {
-    console.warn("ESPN fetch failed:", e.message);
+    console.warn("PGA Tour v2 failed:", e.message);
   }
 
-  // Try PGA Tour Stats feed
+  // Try PGA Tour mini leaderboard
   try {
-    const pgaScores = await fetchFromPGATour();
-    if (pgaScores && Object.keys(pgaScores).length > 0) {
-      pgaScores._source = "pgatour";
-      return pgaScores;
+    const scores = await fetchFromPGATourMini();
+    if (scores && Object.keys(scores).length > 5) {
+      scores._source = "pgatour";
+      return scores;
     }
   } catch (e) {
-    console.warn("PGA Tour fetch failed:", e.message);
+    console.warn("PGA Tour mini failed:", e.message);
   }
 
-  // No live data yet (pre-tournament)
+  // Try ESPN
+  try {
+    const scores = await fetchFromESPN();
+    if (scores && Object.keys(scores).length > 5) {
+      scores._source = "espn";
+      return scores;
+    }
+  } catch (e) {
+    console.warn("ESPN failed:", e.message);
+  }
+
   return { _source: "none" };
 }
 
-async function fetchFromESPN() {
-  const url = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
+const HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "application/json, text/plain, */*",
+  "Accept-Language": "en-US,en;q=0.9",
+};
+
+async function fetchFromPGATourV2() {
+  const url = "https://statdata.pgatour.com/r/current/leaderboard-v2.json";
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-      "Accept": "application/json, text/plain, */*",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Referer": "https://www.espn.com/golf/leaderboard",
-      "Origin": "https://www.espn.com",
-    },
+    headers: { ...HEADERS, "Referer": "https://www.pgatour.com/" },
     signal: AbortSignal.timeout(8000),
   });
-
-  if (!res.ok) throw new Error(`ESPN returned ${res.status}`);
+  if (!res.ok) throw new Error(`PGA Tour v2 returned ${res.status}`);
   const data = await res.json();
-
-  const scores = {};
-  const events = data?.events || [];
-
-  for (const event of events) {
-    // Look for PGA Championship
-    const name = event?.name || "";
-    if (!name.toLowerCase().includes("pga championship") && events.length > 1) continue;
-
-    const competitions = event?.competitions || [];
-    for (const comp of competitions) {
-      const competitors = comp?.competitors || [];
-      for (const player of competitors) {
-        const fullName = player?.athlete?.displayName;
-        if (!fullName) continue;
-
-        const status = player?.status?.type?.name || "STATUS_SCHEDULED";
-        const score = player?.score ?? null;
-        const topar = player?.linescores ? sumLinescores(player.linescores) : null;
-        const thru = player?.status?.thru ?? null;
-        const round = player?.status?.period ?? null;
-        const madeCut = !player?.status?.type?.name?.includes("CUT");
-
-        const rounds = (player?.linescores || []).map((ls) => ({
-          score: ls?.value ?? null,
-          displayValue: ls?.displayValue ?? null,
-        }));
-
-        scores[normalizePlayerName(fullName)] = {
-          name: fullName,
-          total: topar,
-          score: score,
-          thru,
-          round,
-          rounds,
-          madeCut,
-          status,
-        };
-      }
-    }
-  }
-
-  return scores;
+  return parsePGATourData(data);
 }
 
-async function fetchFromPGATour() {
-  // PGA Tour live scoring stats endpoint
+async function fetchFromPGATourMini() {
   const url = "https://statdata.pgatour.com/r/current/leaderboard-v2mini.json";
   const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      "Referer": "https://www.pgatour.com/",
-    },
+    headers: { ...HEADERS, "Referer": "https://www.pgatour.com/" },
     signal: AbortSignal.timeout(8000),
   });
-
-  if (!res.ok) throw new Error(`PGA Tour returned ${res.status}`);
+  if (!res.ok) throw new Error(`PGA Tour mini returned ${res.status}`);
   const data = await res.json();
+  return parsePGATourData(data);
+}
 
+function parsePGATourData(data) {
   const scores = {};
   const rows = data?.leaderboard?.players || [];
 
   for (const player of rows) {
-    const fullName = `${player?.player_bio?.first_name} ${player?.player_bio?.last_name}`;
-    if (!fullName.trim()) continue;
+    const first = player?.player_bio?.first_name || "";
+    const last = player?.player_bio?.last_name || "";
+    const fullName = `${first} ${last}`.trim();
+    if (!fullName) continue;
 
-    const total = player?.total || "E";
-    const thru = player?.thru || null;
-    const currentRound = player?.current_round || 1;
-    const madeCut = player?.status !== "cut";
+    const totalStr = player?.total || "E";
+    const total = parseScoreStr(totalStr);
+    const thru = player?.thru ?? null;
+    const round = player?.current_round ?? 1;
+    const madeCut = player?.status !== "cut" && player?.status !== "CUT";
 
-    const rounds = [
-      player?.rounds?.[0]?.strokes ?? null,
-      player?.rounds?.[1]?.strokes ?? null,
-      player?.rounds?.[2]?.strokes ?? null,
-      player?.rounds?.[3]?.strokes ?? null,
-    ].filter((r) => r !== null);
+    const rounds = (player?.rounds || []).map(r => r?.strokes ?? null).filter(r => r !== null);
 
-    scores[normalizePlayerName(fullName)] = {
+    scores[normalizeName(fullName)] = {
       name: fullName,
-      total: parseScoreStr(total),
+      total,
       thru,
-      round: currentRound,
+      round,
       rounds,
       madeCut,
       status: player?.status || "active",
     };
   }
-
   return scores;
 }
 
-function sumLinescores(linescores) {
-  if (!linescores || linescores.length === 0) return null;
-  let total = 0;
-  for (const ls of linescores) {
-    const val = ls?.value;
-    if (val !== undefined && val !== null) total += Number(val);
+async function fetchFromESPN() {
+  const url = "https://site.api.espn.com/apis/site/v2/sports/golf/pga/scoreboard";
+  const res = await fetch(url, {
+    headers: { ...HEADERS, "Referer": "https://www.espn.com/golf/leaderboard", "Origin": "https://www.espn.com" },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error(`ESPN returned ${res.status}`);
+  const data = await res.json();
+
+  const scores = {};
+  for (const event of (data?.events || [])) {
+    for (const comp of (event?.competitions || [])) {
+      for (const player of (comp?.competitors || [])) {
+        const fullName = player?.athlete?.displayName;
+        if (!fullName) continue;
+        const madeCut = !player?.status?.type?.name?.includes("CUT");
+        const rounds = (player?.linescores || []).map(ls => ls?.value ?? null).filter(v => v !== null);
+        const total = rounds.reduce((s, v) => s + Number(v), 0) || null;
+        scores[normalizeName(fullName)] = {
+          name: fullName,
+          total,
+          thru: player?.status?.thru ?? null,
+          round: player?.status?.period ?? null,
+          rounds,
+          madeCut,
+          status: player?.status?.type?.name || "active",
+        };
+      }
+    }
   }
-  return total;
+  return scores;
 }
 
 function parseScoreStr(str) {
@@ -164,10 +145,6 @@ function parseScoreStr(str) {
   return isNaN(n) ? 0 : n;
 }
 
-export function normalizePlayerName(name) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function normalizeName(name) {
+  return name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z\s]/g, "").replace(/\s+/g, " ").trim();
 }
